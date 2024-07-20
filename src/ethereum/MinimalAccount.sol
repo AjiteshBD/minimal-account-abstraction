@@ -44,7 +44,7 @@ contract MinimalAccount is IAccount, Ownable {
                             FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    constructor(IEntryPoint _entryPoint) IAccount() Ownable(msg.sender) {
+    constructor(address _entryPoint) IAccount() Ownable(msg.sender) {
         i_entryPoint = IEntryPoint(_entryPoint);
     }
 

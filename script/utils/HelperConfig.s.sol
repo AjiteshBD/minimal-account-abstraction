@@ -19,9 +19,12 @@ contract HelperConfig is Script, MasterConstant {
 
     constructor() {
         s_chainConfigs[ETH_SEPOLIA_CHAIN_ID] = getSepoliaConfig();
+        s_chainConfigs[ZKSYNC_SEPOLIA_CHAIN_ID] = getZkSyncConfig();
+
+        s_localconfig = createOrGetAnvilConfig();
     }
 
-    function run() public returns (NetworkCongig memory) {
+    function run() public view returns (NetworkCongig memory) {
         return getConfig();
     }
 
@@ -39,17 +42,19 @@ contract HelperConfig is Script, MasterConstant {
         }
     }
 
-    function getSepoliaConfig() public returns (NetworkCongig memory) {
+    function getSepoliaConfig() public pure returns (NetworkCongig memory) {
         return NetworkCongig({entryPoint: ETH_SEPOLIA_ENTRYPOINT, account: BURNER_WALLET});
     }
 
-    function getZkSyncConfig() public returns (NetworkCongig memory) {
+    function getZkSyncConfig() public pure returns (NetworkCongig memory) {
         return NetworkCongig({entryPoint: ZKSYNC_MAINNET_ENTRYPOINT, account: BURNER_WALLET});
     }
 
-    function createOrGetAnvilConfig() public returns (NetworkCongig memory) {
+    function createOrGetAnvilConfig() public view returns (NetworkCongig memory) {
         if (s_localconfig.account != address(0)) {
             return s_localconfig;
         }
+
+        return NetworkCongig({entryPoint: address(0), account: FOUNDRY_DEFAULT_WALLET});
     }
 }
