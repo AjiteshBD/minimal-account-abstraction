@@ -6,11 +6,19 @@ import {DeployMinimalAccount} from "script/deploy/DeployMinimalAccount.s.sol";
 import {MinimalAccount} from "src/ethereum/MinimalAccount.sol";
 import {HelperConfig} from "script/utils/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {SendPackedUserOp, PackedUserOperation} from "script/utils/SendPackedUserOp.s.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {IEntryPoint} from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
 contract TestMinimalAccount is Test {
+    using MessageHashUtils for bytes32;
+
     HelperConfig helperConfig;
     MinimalAccount minimalAccount;
     ERC20Mock usdc;
+    SendPackedUserOp userOp;
+    HelperConfig.NetworkCongig config;
     uint256 constant MINT_USDC = 1e18;
     address random_user = makeAddr("rand");
 
@@ -18,6 +26,8 @@ contract TestMinimalAccount is Test {
         DeployMinimalAccount deployMinimalAccount = new DeployMinimalAccount();
         (helperConfig, minimalAccount) = deployMinimalAccount.deployMinimalAccount();
         usdc = new ERC20Mock();
+        userOp = new SendPackedUserOp();
+        config = helperConfig.getConfig();
     }
 
     function testOwnerCanExecute() public {
@@ -41,5 +51,21 @@ contract TestMinimalAccount is Test {
         vm.prank(random_user);
         vm.expectRevert(MinimalAccount.MinimalAccount__NotFromEntryPointOrOwner.selector);
         minimalAccount.execute(dest, value, data);
+    }
+
+    function testRecoverSignerWithUserOp() public view {
+        //Arrange
+        uint256 balance = usdc.balanceOf(address(minimalAccount));
+        assertEq(balance, 0);
+        address dest = address(usdc);
+        uint256 value = 0;
+        bytes memory data = abi.encodeWithSelector(usdc.mint.selector, address(minimalAccount), MINT_USDC);
+        bytes memory executeCallData = abi.encodeWithSelector(minimalAccount.execute.selector, dest, value, data);
+        PackedUserOperation memory packedUserOp = userOp.generateSignedUserOp(executeCallData, config);
+        //Act
+        bytes32 packedUserOpHash = IEntryPoint(config.entryPoint).getUserOpHash(packedUserOp);
+        address signer = ECDSA.recover(packedUserOpHash.toEthSignedMessageHash(), packedUserOp.signature);
+        //Assert
+        assertEq(signer, minimalAccount.owner());
     }
 }

@@ -5,6 +5,7 @@ pragma solidity ^0.8.24;
 import {Script} from "forge-std/Script.sol";
 import {MinimalAccount} from "src/ethereum/MinimalAccount.sol";
 import {MasterConstant} from "./MasterConstant.s.sol";
+import {EntryPoint} from "account-abstraction/contracts/core/EntryPoint.sol";
 
 contract HelperConfig is Script, MasterConstant {
     error HelperConfig__InvalidChainId();
@@ -14,7 +15,7 @@ contract HelperConfig is Script, MasterConstant {
         address account;
     }
 
-    NetworkCongig private s_localconfig;
+    NetworkCongig public s_localconfig;
     mapping(uint256 chainId => NetworkCongig config) s_chainConfigs;
 
     constructor() {
@@ -50,11 +51,14 @@ contract HelperConfig is Script, MasterConstant {
         return NetworkCongig({entryPoint: ZKSYNC_MAINNET_ENTRYPOINT, account: BURNER_WALLET});
     }
 
-    function createOrGetAnvilConfig() public view returns (NetworkCongig memory) {
+    function createOrGetAnvilConfig() public returns (NetworkCongig memory) {
         if (s_localconfig.account != address(0)) {
             return s_localconfig;
         }
+        vm.startBroadcast(ANVIL_DEFAULT_ACCOUNT);
+        EntryPoint _entryPoint = new EntryPoint();
+        vm.stopBroadcast();
 
-        return NetworkCongig({entryPoint: address(0), account: FOUNDRY_DEFAULT_WALLET});
+        return NetworkCongig({entryPoint: address(_entryPoint), account: ANVIL_DEFAULT_ACCOUNT});
     }
 }

@@ -12,6 +12,7 @@ contract MasterConstant {
     uint256 constant ZKSYNC_MAINNET_CHAIN_ID = 324;
     address constant FOUNDRY_DEFAULT_WALLET = 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38;
     address constant ANVIL_DEFAULT_ACCOUNT = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+    uint256 constant ANVIL_DEFAULT_ACCOUNT_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
     address constant ETH_MAINNET_ENTRYPOINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
 
