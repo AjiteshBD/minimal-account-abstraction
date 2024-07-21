@@ -53,9 +53,9 @@ contract SendPackedUserOp is Script, MasterConstant {
             nonce: nonce,
             initCode: hex"",
             callData: callData,
-            accountGasLimits: bytes32(uint256(verficationGasLimit) << 128 | callGasLimit),
+            accountGasLimits: bytes32(uint256(verficationGasLimit) << 128 | callGasLimit), //bitshifting to concatenate
             preVerificationGas: verficationGasLimit,
-            gasFees: bytes32(uint256(maxPriorityFeePerGas) << 128 | maxFeePerGas),
+            gasFees: bytes32(uint256(maxPriorityFeePerGas) << 128 | maxFeePerGas), //bitshifting to concatenate
             paymasterAndData: hex"",
             signature: hex""
         });
