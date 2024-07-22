@@ -77,13 +77,13 @@ contract MinimalAccount is IAccount, Ownable {
     //EIP191 version of signed hash
     function _validateSignature(PackedUserOperation calldata userOp, bytes32 userOpHash)
         internal
-        pure
+        view
         returns (uint256 validationData)
     {
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(userOpHash);
         address signer = ECDSA.recover(ethSignedMessageHash, userOp.signature);
 
-        if (signer != userOp.sender) {
+        if (signer != owner()) {
             validationData = SIG_VALIDATION_FAILED;
         } else {
             validationData = SIG_VALIDATION_SUCCESS;
