@@ -2,6 +2,8 @@
 pragma solidity ^0.8.24;
 
 contract MasterConstant {
+    uint256 constant APPROVE_AMOUNT = 1e18;
+
     uint256 constant ETH_MAINNET_CHAIN_ID = 1;
     uint256 constant ETH_SEPOLIA_CHAIN_ID = 11155111;
     uint256 constant ZKSYNC_SEPOLIA_CHAIN_ID = 300;
