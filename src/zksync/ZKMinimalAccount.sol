@@ -14,8 +14,10 @@ import {SystemContractsCaller} from
     "foundry-era-contracts/src/system-contracts/contracts/libraries/SystemContractsCaller.sol";
 import {
     NONCE_HOLDER_SYSTEM_CONTRACT,
-    BOOTLOADER_FORMAL_ADDRESS
+    BOOTLOADER_FORMAL_ADDRESS,
+    DEPLOYER_SYSTEM_CONTRACT
 } from "foundry-era-contracts/src/system-contracts/contracts/Constants.sol";
+import {Utils} from "foundry-era-contracts/src/system-contracts/contracts/libraries/Utils.sol";
 import {INonceHolder} from "foundry-era-contracts/src/system-contracts/contracts/interfaces/INonceHolder.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -27,14 +29,24 @@ contract ZKMinimalAccount is IAccount, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     error ZKMinimalAccount__InsufficientFunds();
-    error ZKMinimalAccount__NOTFROMBOOTLOADER();
+    error ZKMinimalAccount__NotFromBootLoader();
+    error ZKMinimalAccount__ExecutionFailed();
+    error ZKMinimalAccount__NotFromBootLoaderOrOwner();
+    error ZKMinimalAccount__FailedToPay();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
     modifier requireBootLoader() {
         if (msg.sender != BOOTLOADER_FORMAL_ADDRESS) {
-            revert ZKMinimalAccount__NOTFROMBOOTLOADER();
+            revert ZKMinimalAccount__NotFromBootLoader();
+        }
+        _;
+    }
+
+    modifier requireBootLoaderOrOwner() {
+        if (msg.sender != BOOTLOADER_FORMAL_ADDRESS && msg.sender != owner()) {
+            revert ZKMinimalAccount__NotFromBootLoaderOrOwner();
         }
         _;
     }
@@ -73,19 +85,42 @@ contract ZKMinimalAccount is IAccount, Ownable {
         return magic;
     }
 
-    function executeTransaction(bytes32 _txHash, bytes32 _suggestedSignedHash, Transaction calldata _transaction)
-        external
-        payable
-        override
-    {}
+    function executeTransaction(
+        bytes32, /*_txHash*/
+        bytes32, /*_suggestedSignedHash*/
+        Transaction calldata _transaction
+    ) external payable override requireBootLoaderOrOwner {
+        address to = address(uint160(_transaction.to));
+        uint128 value = Utils.safeCastToU128(_transaction.value);
+        bytes memory data = _transaction.data;
+
+        if (to == address(DEPLOYER_SYSTEM_CONTRACT)) {
+            uint32 gas = Utils.safeCastToU32(gasleft());
+            SystemContractsCaller.systemCallWithPropagatedRevert(gas, to, value, data);
+        } else {
+            bool success;
+            assembly {
+                success := call(gas(), to, value, add(data, 0x20), mload(data), 0, 0)
+            }
+
+            if (!success) {
+                revert ZKMinimalAccount__ExecutionFailed();
+            }
+        }
+    }
 
     function executeTransactionFromOutside(Transaction calldata _transaction) external payable override {}
 
-    function payForTransaction(bytes32 _txHash, bytes32 _suggestedSignedHash, Transaction calldata _transaction)
+    function payForTransaction(bytes32, /*_txHash*/ bytes32, /*_suggestedSignedHash*/ Transaction calldata _transaction)
         external
         payable
         override
-    {}
+    {
+        bool success = _transaction.payToTheBootloader();
+        if (!success) {
+            revert ZKMinimalAccount__FailedToPay();
+        }
+    }
 
     function prepareForPaymaster(bytes32 _txHash, bytes32 _possibleSignedHash, Transaction calldata _transaction)
         external
