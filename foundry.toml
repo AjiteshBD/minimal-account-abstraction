@@ -6,6 +6,9 @@ remappings = [
     "account-abstraction/=lib/account-abstraction/",
     "openzeppelin-contracts/=lib/openzeppelin-contracts/",
     "foundry-devops/=lib/foundry-devops/",
+    "foundry-era-contracts/=lib/foundry-era-contracts/",
 ]
+solc_version = "0.8.24"
+--system-mode = true
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
