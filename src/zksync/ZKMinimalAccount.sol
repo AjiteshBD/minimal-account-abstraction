@@ -33,6 +33,7 @@ contract ZKMinimalAccount is IAccount, Ownable {
     error ZKMinimalAccount__ExecutionFailed();
     error ZKMinimalAccount__NotFromBootLoaderOrOwner();
     error ZKMinimalAccount__FailedToPay();
+    error ZKMinimalAccount__InvalidSignature();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -56,11 +57,56 @@ contract ZKMinimalAccount is IAccount, Ownable {
 
     constructor() Ownable(msg.sender) {}
 
-    function validateTransaction(
-        bytes32, /*_txHash*/
-        bytes32, /*_suggestedSignedHash*/
-        Transaction calldata _transaction
-    ) external payable override requireBootLoader returns (bytes4 magic) {
+    receive() external payable {}
+
+    function validateTransaction(bytes32, /*_txHash*/ bytes32, /*_suggestedSignedHash*/ Transaction memory _transaction)
+        external
+        payable
+        override
+        requireBootLoader
+        returns (bytes4 magic)
+    {
+        return _validateTransaction(_transaction);
+    }
+
+    function executeTransaction(bytes32, /*_txHash*/ bytes32, /*_suggestedSignedHash*/ Transaction memory _transaction)
+        external
+        payable
+        override
+        requireBootLoaderOrOwner
+    {
+        _executeTransaction(_transaction);
+    }
+
+    function executeTransactionFromOutside(Transaction memory _transaction) external payable override {
+        bytes4 magic = _validateTransaction(_transaction);
+        if (magic != ACCOUNT_VALIDATION_SUCCESS_MAGIC) {
+            revert ZKMinimalAccount__InvalidSignature();
+        }
+        _executeTransaction(_transaction);
+    }
+
+    function payForTransaction(bytes32, /*_txHash*/ bytes32, /*_suggestedSignedHash*/ Transaction memory _transaction)
+        external
+        payable
+        override
+    {
+        bool success = _transaction.payToTheBootloader();
+        if (!success) {
+            revert ZKMinimalAccount__FailedToPay();
+        }
+    }
+
+    function prepareForPaymaster(bytes32 _txHash, bytes32 _possibleSignedHash, Transaction memory _transaction)
+        external
+        payable
+        override
+    {}
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function _validateTransaction(Transaction memory _transaction) internal returns (bytes4 magic) {
         SystemContractsCaller.systemCallWithPropagatedRevert(
             uint32(gasleft()),
             address(NONCE_HOLDER_SYSTEM_CONTRACT),
@@ -85,11 +131,7 @@ contract ZKMinimalAccount is IAccount, Ownable {
         return magic;
     }
 
-    function executeTransaction(
-        bytes32, /*_txHash*/
-        bytes32, /*_suggestedSignedHash*/
-        Transaction calldata _transaction
-    ) external payable override requireBootLoaderOrOwner {
+    function _executeTransaction(Transaction memory _transaction) internal {
         address to = address(uint160(_transaction.to));
         uint128 value = Utils.safeCastToU128(_transaction.value);
         bytes memory data = _transaction.data;
@@ -108,26 +150,4 @@ contract ZKMinimalAccount is IAccount, Ownable {
             }
         }
     }
-
-    function executeTransactionFromOutside(Transaction calldata _transaction) external payable override {}
-
-    function payForTransaction(bytes32, /*_txHash*/ bytes32, /*_suggestedSignedHash*/ Transaction calldata _transaction)
-        external
-        payable
-        override
-    {
-        bool success = _transaction.payToTheBootloader();
-        if (!success) {
-            revert ZKMinimalAccount__FailedToPay();
-        }
-    }
-
-    function prepareForPaymaster(bytes32 _txHash, bytes32 _possibleSignedHash, Transaction calldata _transaction)
-        external
-        payable
-        override
-    {}
-    /*//////////////////////////////////////////////////////////////
-                           INTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
 }
